@@ -1,0 +1,79 @@
+### Passos que eu segui para trabalhar no problema
+
+- Comecei rodando o código, o código demorava MUITO tempo para rodar cada época
+
+- Reduzi o número de épocas para 2 e rodei o gprof
+
+- Resultado do gprof
+
+    Flat profile:
+
+    Each sample counts as 0.01 seconds.
+    %   cumulative   self              self     total           
+    time   seconds   seconds    calls   s/call   s/call  name    
+    92.00    106.41   106.41    74970     0.00     0.00  matrix_dot
+    2.38    109.16     2.75    37490     0.00     0.00  matrix_minus
+    1.88    111.33     2.17    22494     0.00     0.00  matrix_transpose
+    1.76    113.37     2.04    29992     0.00     0.00  matrix_scalar
+    1.74    115.38     2.01     9370     0.00     0.00  populate_minibatch
+    0.08    115.47     0.09    18740     0.00     0.00  matrix_sum
+    0.05    115.53     0.06 15594240     0.00     0.00  sigmoid
+    0.04    115.58     0.05    14996     0.00     0.00  hadamard_product
+    0.02    115.60     0.02        2     0.01     0.01  shuffle
+    0.01    115.61     0.02  4798720     0.00     0.00  dsigmoid
+    0.01    115.62     0.01    33736     0.00     0.00  matrix_function
+    0.01    115.63     0.01     9370     0.00     0.01  forward
+    0.01    115.64     0.01     7498     0.00     0.01  backward
+    0.01    115.65     0.01        3     0.00     3.69  accuracy
+    0.01    115.66     0.01                             main
+    0.00    115.66     0.00   146212     0.00     0.00  alloc_matrix
+    0.00    115.66     0.00   146197     0.00     0.00  destroy_matrix
+    0.00    115.66     0.00    23820     0.00     0.00  normalRand
+    0.00    115.66     0.00        5     0.00     0.00  zero_to_n
+    0.00    115.66     0.00        4     0.00     0.00  make_uint32
+    0.00    115.66     0.00        3     0.00     0.00  create_layer
+    0.00    115.66     0.00        2     0.00     0.00  init_weight
+    0.00    115.66     0.00        2     0.00     0.00  read_images
+    0.00    115.66     0.00        2     0.00     0.00  read_labels
+    0.00    115.66     0.00        1     0.00     0.00  create_ann
+
+- Podemos observar que a multiplicação matricial representa o maior custo de tempo
+- Sabemos que essa função é perfeita para ser otimizada, então vamos começar por ela
+
+- Fiz uma implementação simples da multiplicação de matrizes, mas ainda não testei
+- Vou passar todos os mallocs para memória unificada
+- Tive um problema de linkage e resolvi trocando todos os arquivos para .cu
+
+- Depois de trocar tudo para memória unificada
+
+        Flat profile:
+
+        Each sample counts as 0.01 seconds.
+        %   cumulative   self              self     total           
+        time   seconds   seconds    calls   s/call   s/call  name    
+        88.69    111.66   111.66    74970     0.00     0.00  matrix_dot(matrix_t*, matrix_t*, matrix_t*)
+        2.45    114.75     3.09    22494     0.00     0.00  matrix_transpose(matrix_t*, matrix_t*)
+        2.31    117.66     2.91    37490     0.00     0.00  matrix_minus(matrix_t*, matrix_t*, matrix_t*)
+        2.03    120.21     2.55    29992     0.00     0.00  matrix_scalar(matrix_t*, double, matrix_t*)
+        1.89    122.59     2.38     9370     0.00     0.00  populate_minibatch(double*, double*, unsigned int*, unsigned int, unsigned char (*) [784], unsigned int, unsigned char*, unsigned int)
+        0.67    123.43     0.84     7498     0.00     0.01  backward(ann_t*, matrix_t*, double (*)(double))
+        0.44    123.99     0.56   146212     0.00     0.00  alloc_matrix(unsigned int, unsigned int)
+        0.34    124.42     0.43     9370     0.00     0.01  forward(ann_t*, double (*)(double))
+        0.21    124.68     0.26    33736     0.00     0.00  matrix_function(matrix_t*, double (*)(double), matrix_t*)
+        0.17    124.89     0.21    18740     0.00     0.00  matrix_sum(matrix_t*, matrix_t*, matrix_t*)
+        0.14    125.06     0.17    14996     0.00     0.00  hadamard_product(matrix_t*, matrix_t*, matrix_t*)
+        0.07    125.15     0.09 15594240     0.00     0.00  sigmoid(double)
+        0.07    125.24     0.09                             main
+        0.06    125.32     0.08                             cudart::driverHelper::mallocManagedPtr(unsigned long, unsigned int, void**)
+        0.06    125.39     0.07                             cudaMallocManaged
+        0.05    125.45     0.06                             cudart::globalState::initializeDriver()
+        0.05    125.51     0.06                             cudart::cudaApiMallocManaged(void**, unsigned long, unsigned int)
+        0.04    125.56     0.05                             cudaMemset
+        0.03    125.60     0.04        3     0.01     3.96  accuracy(unsigned char (*) [784], unsigned char*, unsigned int, unsigned int, ann_t*)
+        0.03    125.64     0.04                             cudart::cudaApiMemset(void*, int, unsigned long)
+        0.03    125.68     0.04                             cudart::contextStateManager::getRuntimeContextState(cudart::contextState**, bool)
+        0.03    125.72     0.04                             cudaFree
+        0.02    125.75     0.03                             cudart::cudaApiFree(void*)
+        0.02    125.78     0.03                             cudart::getGlobalState()
+        0.02    125.80     0.02  4798720     0.00     0.00  dsigmoid(double)
+        0.02    125.82     0.02   146197     0.00     0.00  destroy_matrix(matrix_t*)
