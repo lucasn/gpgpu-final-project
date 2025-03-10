@@ -136,6 +136,16 @@ void gpu_matrix_dot_wrapper(matrix_t *m1, matrix_t *m2, matrix_t *res, int synch
     }
 }
 
+void gpu_matrix_dot_wrapper_stream(matrix_t *m1, matrix_t *m2, matrix_t *res, cudaStream_t stream) {
+    dim3 threads_per_block(16, 16);
+
+    int n_blocks_x = (res->columns + threads_per_block.x - 1) / threads_per_block.x;
+    int n_blocks_y = (res->rows + threads_per_block.y - 1) / threads_per_block.y;
+
+    dim3 n_blocks(n_blocks_x, n_blocks_y);
+    gpu_matrix_dot<<< n_blocks, threads_per_block, 0, stream >>>(m1, m2, res);
+}
+
 __global__
 void gpu_matrix_dot(matrix_t *m1, matrix_t *m2, matrix_t *res) {
     assert ( (m1->columns == m2->rows)  &&
@@ -181,6 +191,24 @@ void gpu_matrix_dot(matrix_t *m1, matrix_t *m2, matrix_t *res) {
 
     if (row < res->rows && col < res->columns) {
         res->m[row * res->columns + col] = sum;
+    }
+}
+
+__global__
+void gpu_matrix_dot_no_shared(matrix_t *m1, matrix_t *m2, matrix_t *res) {
+    assert ( (m1->columns == m2->rows)  &&
+             (m1->rows == res->rows)    &&
+             (m2->columns == res->columns));
+
+    int row = blockIdx.y * blockDim.y + threadIdx.y ;
+    int col = blockIdx.x * blockDim.x + threadIdx.x ;
+
+    if ((row < res->rows) && (col < res->columns)) {
+        float sum = 0;
+        for (int k = 0; k < m1->columns ; k++) {
+            sum += m1->m[ row * m1->columns + k ]* m2->m[ k * m2->columns + col ];
+        }
+        res->m[ row * m2->columns + col ] = sum ;
     }
 }
 

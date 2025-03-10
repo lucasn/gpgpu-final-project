@@ -195,3 +195,24 @@ Each sample counts as 0.01 seconds.
                     0.05%  43.724ms     38733  1.1280us     677ns  129.06us  cudaGetLastError
                     0.04%  38.386ms         4  9.5964ms  791.51us  30.333ms  cudaMemset
                     0.00%  106.15us        97  1.0940us     572ns  26.406us  cuDeviceGetAttribute
+
+
+- Otimizando a alocação de matrizes (exceto aquelas duas no backward)
+
+==4648== Profiling application: ./ann.out
+==4648== Profiling result:
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   99.87%  26.1791s     38733  675.89us  64.428us  7.3886ms  gpu_matrix_dot(matrix_t*, matrix_t*, matrix_t*)
+                    0.13%  33.220ms         4  8.3049ms  17.395us  28.396ms  [CUDA memset]
+      API calls:   38.94%  34.0402s     38733  878.84us  694.74us  13.477ms  cudaLaunchKernel
+                   38.67%  33.8009s     38733  872.66us  83.438us  15.409ms  cudaDeviceSynchronize
+                   11.22%  9.80608s     87522  112.04us  74.010us  366.90ms  cudaMallocManaged
+                   11.05%  9.66009s     87479  110.43us  84.427us  2.0379ms  cudaFree
+                    0.08%  69.186ms     38733  1.7860us     677ns  13.007ms  cudaGetLastError
+                    0.04%  38.417ms         4  9.6043ms  793.91us  28.928ms  cudaMemset
+                    0.00%  102.45us        97  1.0560us     572ns  25.625us  cuDeviceGetAttribute
+                    0.00%  10.417us         1  10.417us  10.417us  10.417us  cuDeviceTotalMem
+                    0.00%  7.2400us         3  2.4130us  1.6150us  3.6460us  cuDeviceGetCount
+                    0.00%  3.0730us         2  1.5360us     989ns  2.0840us  cuDeviceGet
+                    0.00%  1.3020us         1  1.3020us  1.3020us  1.3020us  cuDeviceGetName
+                    0.00%     781ns         1     781ns     781ns     781ns  cuDeviceGetUuid
