@@ -28,6 +28,8 @@ typedef struct
     unsigned input_size;
     unsigned number_of_layers;
     layer_t** layers;
+    matrix_t *one;
+    matrix_t *one_t;
 } ann_t;
 
 ann_t * create_ann(double alpha, unsigned minibatch_size, unsigned number_of_layers, unsigned* nneurons_per_layer);

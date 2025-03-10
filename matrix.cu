@@ -17,7 +17,7 @@ matrix_t *alloc_matrix(unsigned rows, unsigned columns)
     CHECK_ERROR(cudaMallocManaged(&res, sizeof(matrix_t)));
 
     CHECK_ERROR(cudaMallocManaged(&res->m, columns * rows * sizeof(double)));
-    CHECK_ERROR(cudaMemset(res->m, 0, columns * rows * sizeof(double)));
+    // CHECK_ERROR(cudaMemset(res->m, 0, columns * rows * sizeof(double)));
 
     res->columns = columns;
     res->rows = rows;
@@ -128,7 +128,6 @@ void gpu_matrix_dot_wrapper(matrix_t *m1, matrix_t *m2, matrix_t *res, int synch
     int n_blocks_y = (res->rows + threads_per_block.y - 1) / threads_per_block.y;
 
     dim3 n_blocks(n_blocks_x, n_blocks_y);
-
     gpu_matrix_dot<<< n_blocks, threads_per_block >>>(m1, m2, res);
 
     if (synchronize) {

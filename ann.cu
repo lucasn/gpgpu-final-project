@@ -69,6 +69,14 @@ ann_t * create_ann(double alpha, unsigned minibatch_size, unsigned number_of_lay
         nn->layers[l] = create_layer(l, nneurons_per_layer[l], nneurons_per_layer[l-1], minibatch_size);
     }
 
+    nn->one = alloc_matrix(1, nn->minibatch_size);
+    for (int idx = 0; idx < nn->one->columns*nn->one->rows; idx++)
+        nn->one->m[idx] = 1.0;
+
+    nn->one_t = alloc_matrix(nn->minibatch_size, 1);
+    for (int idx = 0; idx < nn->one_t->columns*nn->one_t->rows; idx++)
+        nn->one_t->m[idx] = 1.0;
+
     return nn;
 }
 
@@ -133,13 +141,10 @@ void forward(ann_t *nn, double (*activation_function)(double))
     {
         matrix_t *z1 = alloc_matrix(nn->layers[l]->number_of_neurons, nn->minibatch_size);
         matrix_t *z2 = alloc_matrix(nn->layers[l]->number_of_neurons, nn->minibatch_size);
-        matrix_t *one = alloc_matrix(1, nn->minibatch_size);
-        for (int idx = 0; idx < one->columns*one->rows; idx++)
-            one->m[idx] = 1.0;
 
         gpu_matrix_dot_wrapper(nn->layers[l]->weights, nn->layers[l-1]->activations, z1, true);// z1 <- w^l x a^(l-1)
 
-        gpu_matrix_dot_wrapper(nn->layers[l]->biases, one, z2, true); // z2 <- b^l x 1        
+        gpu_matrix_dot_wrapper(nn->layers[l]->biases, nn->one, z2, true); // z2 <- b^l x 1        
 
         matrix_sum(z1, z2, nn->layers[l]->z); // z^l <- z1 + z2 <=> z^l <- w^l x a^(l-1) + b^l x 1      
 
@@ -147,7 +152,6 @@ void forward(ann_t *nn, double (*activation_function)(double))
      
         destroy_matrix(z1);
         destroy_matrix(z2);
-        destroy_matrix(one);
     }
 }
 
@@ -171,7 +175,6 @@ void backward(ann_t *nn, matrix_t *y, double (*derivative_actfunct)(double))
         dfz = alloc_matrix(nn->layers[l-1]->number_of_neurons, nn->minibatch_size);
 
         matrix_transpose(nn->layers[l]->weights, tw); // (w^l)T        
-        // matrix_dot(tw, nn->layers[l]->delta, delta_tmp); // (w^l)T x delta^l
 
         gpu_matrix_dot_wrapper(tw, nn->layers[l]->delta, delta_tmp, true);
 
@@ -190,7 +193,6 @@ void backward(ann_t *nn, matrix_t *y, double (*derivative_actfunct)(double))
         ta = alloc_matrix(nn->minibatch_size, nn->layers[l-1]->number_of_neurons);
         
         matrix_transpose(nn->layers[l-1]->activations, ta); // ta <- (a^(l-1))^T
-        // matrix_dot(nn->layers[l]->delta, ta, w1); // w1 <- delta^l x (a^(l-1))^T
 
         gpu_matrix_dot_wrapper(nn->layers[l]->delta, ta, w1, true);
 
@@ -200,20 +202,14 @@ void backward(ann_t *nn, matrix_t *y, double (*derivative_actfunct)(double))
         destroy_matrix(w1);
         destroy_matrix(ta);
 
-        matrix_t *one, *b1;
+        matrix_t *b1;
         b1 = alloc_matrix(nn->layers[l]->number_of_neurons, 1);
-        one = alloc_matrix(nn->minibatch_size, 1);
-        for (int idx = 0; idx < one->columns*one->rows; idx++)
-            one->m[idx] = 1.0;
 
-        // matrix_dot(nn->layers[l]->delta, one, b1); // b1 <- delta^l x 1^T
-
-        gpu_matrix_dot_wrapper(nn->layers[l]->delta, one, b1, true);
+        gpu_matrix_dot_wrapper(nn->layers[l]->delta, nn->one_t, b1, true);
 
         matrix_scalar(b1,  nn->alpha / nn->minibatch_size, b1); // b1 <- alpha / m . delta^l x 1^T
         matrix_minus(nn->layers[l]->biases, b1, nn->layers[l]->biases); // b^l = b^l - alpha / m . delta^l x 1^T
         
-        destroy_matrix(one);
         destroy_matrix(b1);
     }
 }

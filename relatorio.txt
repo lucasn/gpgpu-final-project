@@ -121,3 +121,77 @@ Each sample counts as 0.01 seconds.
   0.48      8.01     0.04  2399360     0.00     0.00  dsigmoid(double)
   0.48      8.05     0.04                             cudaFree
   0.48      8.09     0.04                             cudaLaunchKernel
+
+
+- Observação: código sem gpu com uma só epoca
+
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls   s/call   s/call  name    
+ 89.16     58.06    58.06    38733     0.00     0.00  matrix_dot(matrix_t*, matrix_t*, matrix_t*)
+  2.52     59.70     1.64    18745     0.00     0.00  matrix_minus(matrix_t*, matrix_t*, matrix_t*)
+  2.23     61.15     1.45    11247     0.00     0.00  matrix_transpose(matrix_t*, matrix_t*)
+  1.98     62.44     1.29    14996     0.00     0.00  matrix_scalar(matrix_t*, double, matrix_t*)
+  1.81     63.62     1.18     4997     0.00     0.00  populate_minibatch(double*, double*, unsigned int*, unsigned int, unsigned char (*) [784], unsigned int, unsigned char*, unsigned int)
+  0.60     64.01     0.39     3749     0.00     0.01  backward(ann_t*, matrix_t*, double (*)(double))
+  0.52     64.35     0.34     4997     0.00     0.01  forward(ann_t*, double (*)(double))
+  0.40     64.61     0.26    74986     0.00     0.00  alloc_matrix(unsigned int, unsigned int)
+  0.15     64.71     0.10    17492     0.00     0.00  matrix_function(matrix_t*, double (*)(double), matrix_t*)
+  0.09     64.77     0.06  7996800     0.00     0.00  sigmoid(double)
+  0.08     64.82     0.05     9994     0.00     0.00  matrix_sum(matrix_t*, matrix_t*, matrix_t*)
+  0.05     64.85     0.03    74971     0.00     0.00  destroy_matrix(matrix_t*)
+  0.05     64.88     0.03                             cudart::cudaApiMemset(void*, int, unsigned long)
+  0.05     64.91     0.03                             cudart::contextStateManager::getRuntimeContextState(cudart::contextState**, bool)
+  0.05     64.94     0.03                             cudart::cuosOnce(int*, void (*)())
+
+- Resolvi remover o cuda memSet do matrix alloc_matrix
+
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   99.86%  23.7658s     38733  613.58us  33.750us  4.3528ms  gpu_matrix_dot(matrix_t*, matrix_t*, matrix_t*)
+                    0.14%  33.190ms         4  8.2975ms  17.187us  28.364ms  [CUDA memset]
+      API calls:   34.99%  33.9504s     38733  876.52us  691.98us  7.5750ms  cudaLaunchKernel
+                   32.12%  31.1627s     38733  804.55us  82.761us  11.654ms  cudaDeviceSynchronize
+                   16.52%  16.0279s    149949  106.89us  82.760us  2.0454ms  cudaFree
+                   16.28%  15.7943s    149988  105.30us  78.959us  374.96ms  cudaMallocManaged
+                    0.06%  53.411ms     38733  1.3780us     677ns  116.35us  cudaGetLastError
+                    0.04%  37.290ms         4  9.3226ms  822.08us  29.436ms  cudaMemset
+                    0.00%  130.05us        97  1.3400us     729ns  30.781us  cuDeviceGetAttribute
+                    0.00%  11.771us         1  11.771us  11.771us  11.771us  cuDeviceTotalMem
+                    0.00%  7.7610us         3  2.5870us  1.2500us  3.6460us  cuDeviceGetCount
+                    0.00%  3.2810us         2  1.6400us  1.3020us  1.9790us  cuDeviceGet
+                    0.00%  2.3960us         1  2.3960us  2.3960us  2.3960us  cuDeviceGetName
+                    0.00%  1.3020us         1  1.3020us  1.3020us  1.3020us  cuDeviceGetUuid
+
+
+- Block size 16,16
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   99.92%  43.0216s     38733  1.1107ms  100.16us  10.523ms  gpu_matrix_dot(matrix_t*, matrix_t*, matrix_t*)
+                    0.08%  33.288ms         4  8.3219ms  17.292us  28.433ms  [CUDA memset]
+      API calls:   44.06%  52.1558s     38733  1.3465ms  91.459us  14.780ms  cudaDeviceSynchronize
+                   29.17%  34.5289s     38733  891.46us  694.53us  7.1492ms  cudaLaunchKernel
+                   13.43%  15.9023s    149988  106.02us  74.115us  502.41ms  cudaMallocManaged
+                   13.26%  15.7002s    149949  104.70us  82.448us  3.3931ms  cudaFree
+                    0.04%  43.044ms     38733  1.1110us     677ns  114.79us  cudaGetLastError
+                    0.03%  40.925ms         4  10.231ms  985.78us  29.436ms  cudaMemset
+                    0.00%  105.73us        97  1.0890us     520ns  27.760us  cuDeviceGetAttribute
+                    0.00%  8.5420us         1  8.5420us  8.5420us  8.5420us  cuDeviceTotalMem
+                    0.00%  5.9380us         3  1.9790us  1.3540us  2.7610us  cuDeviceGetCount
+                    0.00%  2.8650us         2  1.4320us     990ns  1.8750us  cuDeviceGet
+                    0.00%  1.8750us         1  1.8750us  1.8750us  1.8750us  cuDeviceGetName
+                    0.00%     885ns         1     885ns     885ns     885ns  cuDeviceGetUuid
+
+
+- Alocando os ones apenas uma vez temos uma melhora no tempo do mallocManaged
+
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   99.87%  26.1962s     38733  676.33us  64.949us  7.3692ms  gpu_matrix_dot(matrix_t*, matrix_t*, matrix_t*)
+                    0.13%  33.172ms         4  8.2929ms  17.187us  28.354ms  [CUDA memset]
+      API calls:   36.58%  34.0712s     38733  879.64us  695.00us  13.693ms  cudaLaunchKernel
+                   36.41%  33.9180s     38733  875.69us  87.032us  17.400ms  cudaDeviceSynchronize
+                   13.48%  12.5517s    115008  109.14us  79.739us  386.98ms  cudaMallocManaged
+                   13.44%  12.5210s    114965  108.91us  83.958us  2.8344ms  cudaFree
+                    0.05%  43.724ms     38733  1.1280us     677ns  129.06us  cudaGetLastError
+                    0.04%  38.386ms         4  9.5964ms  791.51us  30.333ms  cudaMemset
+                    0.00%  106.15us        97  1.0940us     572ns  26.406us  cuDeviceGetAttribute
