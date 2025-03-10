@@ -34,5 +34,7 @@ void matrix_scalar(matrix_t *m1, double s, matrix_t *res);
 
 void matrix_memcpy(matrix_t *dest, const matrix_t *src);
 
+void gpu_matrix_dot_wrapper(matrix_t *m1, matrix_t *m2, matrix_t *res, int synchronize);
+
 __global__ void gpu_matrix_dot(matrix_t *m1, matrix_t *m2, matrix_t *res);
 #endif

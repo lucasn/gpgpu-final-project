@@ -77,3 +77,47 @@
         0.02    125.78     0.03                             cudart::getGlobalState()
         0.02    125.80     0.02  4798720     0.00     0.00  dsigmoid(double)
         0.02    125.82     0.02   146197     0.00     0.00  destroy_matrix(matrix_t*)
+
+
+- Depois todos os matrix_dot por matriz com decomposição em tiles
+
+- tive progresso no tempo (diminuí para uma época o treinamento)
+
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   94.81%  26.3260s     38733  679.68us  65.625us  3.3243ms  gpu_matrix_dot(matrix_t*, matrix_t*, matrix_t*)
+                    5.19%  1.44014s     74990  19.204us  7.9160us  28.542ms  [CUDA memset]
+      API calls:   43.95%  77.5362s     74990  1.0340ms  772.50us  118.67ms  cudaMemset
+                   18.74%  33.0622s     38733  853.59us  84.427us  12.352ms  cudaDeviceSynchronize
+                   18.31%  32.2964s     38733  833.82us  690.37us  7.1145ms  cudaLaunchKernel
+                    9.74%  17.1884s    149988  114.60us  80.782us  375.36ms  cudaMallocManaged
+                    9.22%  16.2643s    149949  108.47us  83.698us  24.855ms  cudaFree
+                    0.03%  57.930ms     38733  1.4950us     729ns  927.55us  cudaGetLastError
+                    0.00%  129.59us        97  1.3350us     677ns  31.042us  cuDeviceGetAttribute
+                    0.00%  10.156us         1  10.156us  10.156us  10.156us  cuDeviceTotalMem
+                    0.00%  6.4070us         3  2.1350us  1.5620us  2.7090us  cuDeviceGetCount
+                    0.00%  3.1770us         2  1.5880us  1.3020us  1.8750us  cuDeviceGet
+                    0.00%  2.0830us         1  2.0830us  2.0830us  2.0830us  cuDeviceGetName
+                    0.00%  1.3540us         1  1.3540us  1.3540us  1.3540us  cuDeviceGetUuid
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls  ms/call  ms/call  name    
+ 21.13      1.76     1.76    14996     0.12     0.12  matrix_scalar(matrix_t*, double, matrix_t*)
+ 20.05      3.43     1.67    18745     0.09     0.09  matrix_minus(matrix_t*, matrix_t*, matrix_t*)
+ 17.29      4.87     1.44     4997     0.29     0.29  populate_minibatch(double*, double*, unsigned int*, unsigned int, unsigned char (*) [784], unsigned int, unsigned char*, unsigned int)
+ 15.85      6.19     1.32    11247     0.12     0.12  matrix_transpose(matrix_t*, matrix_t*)
+  4.68      6.58     0.39     4997     0.08     0.17  forward(ann_t*, double (*)(double))
+  4.44      6.95     0.37     3749     0.10     1.48  backward(ann_t*, matrix_t*, double (*)(double))
+  3.24      7.22     0.27    74986     0.00     0.00  alloc_matrix(unsigned int, unsigned int)
+  2.16      7.40     0.18    17492     0.01     0.02  matrix_function(matrix_t*, double (*)(double), matrix_t*)
+  1.44      7.52     0.12     9994     0.01     0.01  matrix_sum(matrix_t*, matrix_t*, matrix_t*)
+  1.08      7.61     0.09    74971     0.00     0.00  destroy_matrix(matrix_t*)
+  0.84      7.68     0.07    38733     0.00     0.00  gpu_matrix_dot_wrapper(matrix_t*, matrix_t*, matrix_t*, int)
+  0.84      7.75     0.07     7498     0.01     0.01  hadamard_product(matrix_t*, matrix_t*, matrix_t*)
+  0.72      7.81     0.06                             cudart::contextStateManager::getRuntimeContextState(cudart::contextState**, bool)
+  0.72      7.87     0.06                             main
+  0.60      7.92     0.05  7996800     0.00     0.00  sigmoid(double)
+  0.60      7.97     0.05                             cudart::driverHelper::mallocManagedPtr(unsigned long, unsigned int, void**)
+  0.48      8.01     0.04  2399360     0.00     0.00  dsigmoid(double)
+  0.48      8.05     0.04                             cudaFree
+  0.48      8.09     0.04                             cudaLaunchKernel

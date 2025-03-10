@@ -1,11 +1,14 @@
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "matrix.h"
 #include "error.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
+
+#define TILE_SIZE 16
 
 matrix_t *alloc_matrix(unsigned rows, unsigned columns)
 {
@@ -118,21 +121,67 @@ void matrix_dot(matrix_t *m1, matrix_t *m2, matrix_t *res)
     }
 }
 
+void gpu_matrix_dot_wrapper(matrix_t *m1, matrix_t *m2, matrix_t *res, int synchronize) {
+    dim3 threads_per_block(16, 16);
+
+    int n_blocks_x = (res->columns + threads_per_block.x - 1) / threads_per_block.x;
+    int n_blocks_y = (res->rows + threads_per_block.y - 1) / threads_per_block.y;
+
+    dim3 n_blocks(n_blocks_x, n_blocks_y);
+
+    gpu_matrix_dot<<< n_blocks, threads_per_block >>>(m1, m2, res);
+
+    if (synchronize) {
+        cudaGetLastError();
+        CHECK_ERROR(cudaDeviceSynchronize());
+    }
+}
+
 __global__
 void gpu_matrix_dot(matrix_t *m1, matrix_t *m2, matrix_t *res) {
     assert ( (m1->columns == m2->rows)  &&
              (m1->rows == res->rows)    &&
              (m2->columns == res->columns));
 
+    __shared__ double shared_m1[TILE_SIZE][TILE_SIZE];
+    __shared__ double shared_m2[TILE_SIZE][TILE_SIZE];
+
     int row = blockIdx.y * blockDim.y + threadIdx.y ;
     int col = blockIdx.x * blockDim.x + threadIdx.x ;
 
-    if ((row < res->rows) && (col < res->columns)) {
-        float sum = 0;
-        for (int k = 0; k < m1->columns ; k++) {
-            sum += m1->m[ row * m1->columns + k ]* m2->m[ k * m2->columns + col ];
+    double sum = 0;
+
+    int n_tiles = (m1->columns + TILE_SIZE - 1) / TILE_SIZE;
+
+    for (int p = 0; p < n_tiles; p++) {
+
+        if (row < m1->rows && p * TILE_SIZE + threadIdx.x < m1->columns){
+            shared_m1[threadIdx.y][threadIdx.x] = m1->m[row * m1->columns + (p * TILE_SIZE + threadIdx.x)];
         }
-        res->m[ row * m2->columns + col ] = sum ;
+        else {
+            shared_m1[threadIdx.y][threadIdx.x] = 0;
+        }
+
+        if (p * TILE_SIZE + threadIdx.y < m2->rows && col < m2->columns) {
+            shared_m2[threadIdx.y][threadIdx.x] = m2->m[(p * TILE_SIZE + threadIdx.y) * m2->columns + col];
+        }
+        else {
+            shared_m2[threadIdx.y][threadIdx.x] = 0;
+        }
+        
+        __syncthreads();
+
+        if (row < res->rows && col < res->columns) {
+            for (int i = 0; i < TILE_SIZE; i++) {
+                sum += shared_m1[threadIdx.y][i] * shared_m2[i][threadIdx.x];
+            }
+        }
+        __syncthreads();
+        
+    }
+
+    if (row < res->rows && col < res->columns) {
+        res->m[row * res->columns + col] = sum;
     }
 }
 

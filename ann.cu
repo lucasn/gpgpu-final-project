@@ -9,6 +9,9 @@
 #include <stdint.h>
 #include "error.h"
 
+#define true 1
+#define false 0
+
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
@@ -134,37 +137,9 @@ void forward(ann_t *nn, double (*activation_function)(double))
         for (int idx = 0; idx < one->columns*one->rows; idx++)
             one->m[idx] = 1.0;
 
-        // matrix_dot(nn->layers[l]->weights, nn->layers[l-1]->activations, z1); // z1 <- w^l x a^(l-1)
+        gpu_matrix_dot_wrapper(nn->layers[l]->weights, nn->layers[l-1]->activations, z1, true);// z1 <- w^l x a^(l-1)
 
-        dim3 threads_per_block(16, 16);
-        dim3 n_blocks1(
-            MAX(1, 
-                MAX(ceil(nn->layers[l]->weights->rows / threads_per_block.x), ceil(nn->layers[l-1]->activations->rows / threads_per_block.x))
-            ), 
-            MAX(1, 
-                MAX(ceil(nn->layers[l]->weights->columns / threads_per_block.y), ceil(nn->layers[l-1]->activations->columns / threads_per_block.y))
-            )
-        );
-        gpu_matrix_dot<<< n_blocks1, threads_per_block >>>(nn->layers[l]->weights, nn->layers[l-1]->activations, z1);
-
-        //matrix_dot(nn->layers[l]->biases, one, z2); // z2 <- b^l x 1        
-
-        cudaGetLastError();
-        CHECK_ERROR(cudaDeviceSynchronize());
-
-        dim3 n_blocks2(
-            MAX(1, 
-                MAX(ceil(nn->layers[l]->biases->rows / threads_per_block.x), ceil(one->rows / threads_per_block.x))
-            ), 
-            MAX(1, 
-                MAX(ceil(nn->layers[l]->biases->columns / threads_per_block.y), ceil(one->columns / threads_per_block.y))
-            )
-        );
-
-        gpu_matrix_dot<<< n_blocks2, threads_per_block >>>(nn->layers[l]->biases, one, z2);
-
-        cudaGetLastError();
-        CHECK_ERROR(cudaDeviceSynchronize());
+        gpu_matrix_dot_wrapper(nn->layers[l]->biases, one, z2, true); // z2 <- b^l x 1        
 
         matrix_sum(z1, z2, nn->layers[l]->z); // z^l <- z1 + z2 <=> z^l <- w^l x a^(l-1) + b^l x 1      
 
@@ -198,20 +173,7 @@ void backward(ann_t *nn, matrix_t *y, double (*derivative_actfunct)(double))
         matrix_transpose(nn->layers[l]->weights, tw); // (w^l)T        
         // matrix_dot(tw, nn->layers[l]->delta, delta_tmp); // (w^l)T x delta^l
 
-        dim3 threads_per_block(16, 16);
-        dim3 n_blocks(
-            MAX(1, 
-                MAX(ceil(tw->rows / threads_per_block.x), ceil(nn->layers[l]->delta->rows / threads_per_block.x))
-            ), 
-            MAX(1, 
-                MAX(ceil(tw->columns / threads_per_block.y), ceil(nn->layers[l]->delta->columns / threads_per_block.y))
-            )
-        );
-
-        gpu_matrix_dot<<< n_blocks, threads_per_block >>>(tw, nn->layers[l]->delta, delta_tmp);
-
-        cudaGetLastError();
-        CHECK_ERROR(cudaDeviceSynchronize());
+        gpu_matrix_dot_wrapper(tw, nn->layers[l]->delta, delta_tmp, true);
 
         matrix_function(nn->layers[l-1]->z, derivative_actfunct, dfz); // f'(z^(l-1))
         hadamard_product(delta_tmp, dfz, nn->layers[l-1]->delta); // delta^(l-1) = (w^l)T x delta^l o f'(z^(l-1))
@@ -230,20 +192,7 @@ void backward(ann_t *nn, matrix_t *y, double (*derivative_actfunct)(double))
         matrix_transpose(nn->layers[l-1]->activations, ta); // ta <- (a^(l-1))^T
         // matrix_dot(nn->layers[l]->delta, ta, w1); // w1 <- delta^l x (a^(l-1))^T
 
-        dim3 threads_per_block(16, 16);
-        dim3 n_blocks(
-            MAX(1, 
-                MAX(ceil(nn->layers[l]->delta->rows / threads_per_block.x), ceil(ta->rows / threads_per_block.x))
-            ), 
-            MAX(1, 
-                MAX(ceil(nn->layers[l]->delta->columns / threads_per_block.y), ceil(ta->columns / threads_per_block.y))
-            )
-        );
-
-        gpu_matrix_dot<<< n_blocks, threads_per_block >>>(nn->layers[l]->delta, ta, w1);
-
-        cudaGetLastError();
-        CHECK_ERROR(cudaDeviceSynchronize());
+        gpu_matrix_dot_wrapper(nn->layers[l]->delta, ta, w1, true);
 
         matrix_scalar(w1, nn->alpha / nn->minibatch_size, w1); // w1 <- alpha /m . delta^l x (a^(l-1))^T
         matrix_minus(nn->layers[l]->weights, w1, nn->layers[l]->weights); // w^l <- w^l - alpha /m . delta^l x (a^(l-1))^T
@@ -259,20 +208,7 @@ void backward(ann_t *nn, matrix_t *y, double (*derivative_actfunct)(double))
 
         // matrix_dot(nn->layers[l]->delta, one, b1); // b1 <- delta^l x 1^T
 
-        dim3 threads_per_block2(16, 16);
-        dim3 n_blocks2(
-            MAX(1, 
-                MAX(ceil(nn->layers[l]->delta->rows / threads_per_block2.x), ceil(one->rows / threads_per_block2.x))
-            ), 
-            MAX(1, 
-                MAX(ceil(nn->layers[l]->delta->columns / threads_per_block2.y), ceil(one->columns / threads_per_block2.y))
-            )
-        );
-
-        gpu_matrix_dot<<< n_blocks2, threads_per_block2 >>>(nn->layers[l]->delta, one, b1);
-
-        cudaGetLastError();
-        CHECK_ERROR(cudaDeviceSynchronize());
+        gpu_matrix_dot_wrapper(nn->layers[l]->delta, one, b1, true);
 
         matrix_scalar(b1,  nn->alpha / nn->minibatch_size, b1); // b1 <- alpha / m . delta^l x 1^T
         matrix_minus(nn->layers[l]->biases, b1, nn->layers[l]->biases); // b^l = b^l - alpha / m . delta^l x 1^T

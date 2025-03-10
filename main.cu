@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 
     matrix_t *out = alloc_matrix(10, minibatch_size);
     
-    for (int epoch = 0; epoch < 2; epoch ++)
+    for (int epoch = 0; epoch < 1; epoch ++)
     {
         printf("start learning epoch %d\n", epoch);
 
