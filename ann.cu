@@ -219,6 +219,8 @@ void backward(ann_t *nn, matrix_t *y, double (*derivative_actfunct)(double))
         matrix_scalar(w1, nn->alpha / nn->minibatch_size, w1); // w1 <- alpha /m . delta^l x (a^(l-1))^T
         matrix_minus(nn->layers[l]->weights, w1, nn->layers[l]->weights); // w^l <- w^l - alpha /m . delta^l x (a^(l-1))^T
 
+        //gpu_matrix_scalar_minus_wrapper(nn->layers[l]->weights, w1, nn->alpha / nn->minibatch_size, nn->layers[l]->weights);
+
         destroy_matrix(w1);
         destroy_matrix(ta);
 

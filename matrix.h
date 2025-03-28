@@ -41,4 +41,8 @@ void gpu_matrix_dot_wrapper_stream(matrix_t *m1, matrix_t *m2, matrix_t *res, cu
 __global__ void gpu_matrix_dot(matrix_t *m1, matrix_t *m2, matrix_t *res);
 
 __global__ void gpu_matrix_dot_no_shared(matrix_t *m1, matrix_t *m2, matrix_t *res);
+
+__global__ void gpu_matrix_scalar_minus(matrix_t *m1, matrix_t *m2, double s, matrix_t *res);
+
+void gpu_matrix_scalar_minus_wrapper(matrix_t *m1, matrix_t *m2, double s, matrix_t *res);
 #endif

@@ -249,6 +249,33 @@ void matrix_scalar(matrix_t *m1, double s, matrix_t *res)
     }
 }
 
+__global__ void gpu_matrix_scalar_minus(matrix_t *m1, matrix_t *m2, double s, matrix_t *res) {
+    assert ( (m1->rows == m2->rows)  &&
+             (m1->columns == res->columns)    &&
+             (res->rows == m1->rows)  && 
+             (res->columns == m1->columns));
+
+    int row = blockIdx.y * blockDim.y + threadIdx.y ;
+    int col = blockIdx.x * blockDim.x + threadIdx.x ;
+
+    if ((row < res->rows) && (col < res->columns)) {
+        res->m[row * res->columns + col] = m1->m[row * res->columns + col] - s * m2->m[row * res->columns + col];
+    }
+}
+
+void gpu_matrix_scalar_minus_wrapper(matrix_t *m1, matrix_t *m2, double s, matrix_t *res) {
+    dim3 threads_per_block(16, 16);
+
+    int n_blocks_x = (res->columns + threads_per_block.x - 1) / threads_per_block.x;
+    int n_blocks_y = (res->rows + threads_per_block.y - 1) / threads_per_block.y;
+
+    dim3 n_blocks(n_blocks_x, n_blocks_y);
+    gpu_matrix_scalar_minus<<< n_blocks, threads_per_block >>>(m1, m2, s, res);
+
+    cudaGetLastError();
+    CHECK_ERROR(cudaDeviceSynchronize());
+}
+
 void matrix_memcpy(matrix_t *dest, const matrix_t *src)
 {
     assert ( (dest->rows == src->rows)      &&             
